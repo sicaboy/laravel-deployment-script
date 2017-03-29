@@ -1,4 +1,5 @@
 #!/bin/sh
+LOCAL_DEPLOY_SCRIPT_DIR=$(pwd)
 
 # JENKINS VARIABLE OR DIRECT SETUP BELOW:
 MAINTENANCE="Y"
@@ -10,11 +11,9 @@ GIT_REPOSITORY="https://github.com/sicaboy/api-parcelf.git"
 GIT_BRANCH="master"
 LOCAL_TEMP_WORKSPACE="/tmp/deploy_git"
 TARGET_PROD_BUILD_DIR="~/builds_www"
-TARGET_PROD_BUILD_LAST_BACKUP_DIR="~/builds_www_backup"
-TARGET_PROD_BUILD_AFTER_DEPLOY_SH="~/after-deploy.sh"  # "$TARGET_PROD_BUILD_DIR/cli/after-deploy.sh"
+TARGET_PROD_WWW_BACKUP_DIR="~/builds_www_backup"
 TARGET_PROD_WWW_DIR="/var/www/api-parcelf"
 TARGET_PROD_ARTISAN_PATH="$TARGET_PROD_WWW_DIR/artisan"
-
 
 # SET ALL PROD SERVERS WITH MAINTENANCE PAGE
 echo "Will set maintenance page: $MAINTENANCE"
@@ -23,7 +22,7 @@ if [ "$MAINTENANCE" = "Y" ]; then
     for HOST in $TARGET_HOSTS
     do
         #ssh -i $PEM_PATH $SSH_USERNAME@$HOST "if [ -f $TARGET_PROD_ARTISAN_PATH ]; then sudo ln -s /var/www/down.html /var/www/maintenance.html; fi;"
-        ssh -i $PEM_PATH $SSH_USERNAME@$HOST "if [ -f $TARGET_PROD_ARTISAN_PATH ]; then php $TARGET_PROD_ARTISAN_PATH down; fi;"
+        ssh -i $PEM_PATH $SSH_USERNAME@$HOST "if [ -f $TARGET_PROD_ARTISAN_PATH ]; then sudo php $TARGET_PROD_ARTISAN_PATH down; fi;"
         echo $HOST
     done
 fi
@@ -53,7 +52,12 @@ do
  # RSYNC
   rsync -az -e "ssh -i $PEM_PATH" $LOCAL_TEMP_WORKSPACE/ $SSH_USERNAME@$HOST:$TARGET_PROD_BUILD_DIR
 
- #CHANGE CONFIGS ETC
-  ssh -i $PEM_PATH $SSH_USERNAME@$HOST "export TARGET_PROD_BUILD_DIR=$TARGET_PROD_BUILD_DIR;export TARGET_PROD_BUILD_LAST_BACKUP_DIR=$TARGET_PROD_BUILD_LAST_BACKUP_DIR; export TARGET_PROD_WWW_DIR=$TARGET_PROD_WWW_DIR;export TARGET_PROD_ARTISAN_PATH=$TARGET_PROD_ARTISAN_PATH; sudo -E $TARGET_PROD_BUILD_AFTER_DEPLOY_SH;"
+ # CHANGE CONFIGS ETC
+  echo "Copy $LOCAL_DEPLOY_SCRIPT_DIR/after-deploy.sh to remote server"
+  scp -i $PEM_PATH  $LOCAL_DEPLOY_SCRIPT_DIR/after-deploy.sh $SSH_USERNAME@$HOST:/tmp/after-deploy.sh
+  
+  echo "Executing after-deploy.sh on remote server"
+  #ssh -i $PEM_PATH $SSH_USERNAME@$HOST "export TARGET_PROD_BUILD_DIR=$TARGET_PROD_BUILD_DIR; export TARGET_PROD_WWW_BACKUP_DIR=$TARGET_PROD_WWW_BACKUP_DIR; export TARGET_PROD_WWW_DIR=$TARGET_PROD_WWW_DIR; export TARGET_PROD_ARTISAN_PATH=$TARGET_PROD_ARTISAN_PATH; sudo -E sh /tmp/after-deploy.sh;"
+  ssh -i $PEM_PATH $SSH_USERNAME@$HOST "export TARGET_PROD_BUILD_DIR=$TARGET_PROD_BUILD_DIR; export TARGET_PROD_WWW_BACKUP_DIR=$TARGET_PROD_WWW_BACKUP_DIR; export TARGET_PROD_WWW_DIR=$TARGET_PROD_WWW_DIR; export TARGET_PROD_ARTISAN_PATH=$TARGET_PROD_ARTISAN_PATH; sh /tmp/after-deploy.sh;"
 
 done
