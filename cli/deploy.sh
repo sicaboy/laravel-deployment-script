@@ -9,7 +9,9 @@ TARGET_HOSTS="ec2-54-252-153-210.ap-southeast-2.compute.amazonaws.com"
 GIT_REPOSITORY="https://github.com/sicaboy/api-parcelf.git"
 GIT_BRANCH="master"
 LOCAL_TEMP_WORKSPACE="/tmp/deploy_git"
-TARGET_PROD_BUILD_DIR="~/builds/www_temp"
+TARGET_PROD_BUILD_DIR="~/builds_www"
+TARGET_PROD_BUILD_LAST_BACKUP_DIR="~/builds_www_backup"
+TARGET_PROD_BUILD_AFTER_DEPLOY_SH="~/after-deploy.sh"  # "$TARGET_PROD_BUILD_DIR/cli/after-deploy.sh"
 TARGET_PROD_WWW_DIR="/var/www/api-parcelf"
 TARGET_PROD_ARTISAN_PATH="$TARGET_PROD_WWW_DIR/artisan"
 
@@ -28,7 +30,7 @@ fi
 
 # Fetch files from Git
 if [ -d "$LOCAL_TEMP_WORKSPACE" ]; then
-    rm -R $LOCAL_TEMP_WORKSPACE
+    rm -rf $LOCAL_TEMP_WORKSPACE
 fi
 git clone $GIT_REPOSITORY $LOCAL_TEMP_WORKSPACE
 cd $LOCAL_TEMP_WORKSPACE
@@ -38,7 +40,8 @@ git checkout $GIT_BRANCH
 
 #Clean git files
 echo "Removing $LOCAL_TEMP_WORKSPACE/.git"
-rm -R $LOCAL_TEMP_WORKSPACE/.git
+rm -rf $LOCAL_TEMP_WORKSPACE/.git
+
 
 for HOST in $TARGET_HOSTS
 do
@@ -51,6 +54,6 @@ do
   rsync -az -e "ssh -i $PEM_PATH" $LOCAL_TEMP_WORKSPACE/ $SSH_USERNAME@$HOST:$TARGET_PROD_BUILD_DIR
 
  #CHANGE CONFIGS ETC
-  ssh -i $PEM_PATH $SSH_USERNAME@$HOST "export DEST=$TARGET_PROD_BUILD_DIR; export BASE_DOMAIN=$BASE_DOMAIN;export SUBPORTAL=$SUBPORTAL;export SUBPUBLIC=$SUBPUBLIC;export SUBSTATIC=$SUBSTATIC; export SUBUPLOAD=$SUBUPLOAD;cd /home/tallcat; sudo -E $TARGET_PROD_BUILD_DIR/cli/after-deploy.sh;"
+  ssh -i $PEM_PATH $SSH_USERNAME@$HOST "export TARGET_PROD_BUILD_DIR=$TARGET_PROD_BUILD_DIR;export TARGET_PROD_BUILD_LAST_BACKUP_DIR=$TARGET_PROD_BUILD_LAST_BACKUP_DIR; export TARGET_PROD_WWW_DIR=$TARGET_PROD_WWW_DIR;export TARGET_PROD_ARTISAN_PATH=$TARGET_PROD_ARTISAN_PATH; sudo -E $TARGET_PROD_BUILD_AFTER_DEPLOY_SH;"
 
 done

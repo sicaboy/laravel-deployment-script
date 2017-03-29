@@ -1,55 +1,43 @@
 #!/bin/sh
 
 # THIS SCRIPT IS SUPPOSED TO BE EXECUTED ON PROD SERVERS THROUGH DEPLOY.SH ON JENKINS
+# Available Variables:
+# TARGET_PROD_BUILD_DIR
+# TARGET_PROD_WWW_BACKUP_DIR
+# TARGET_PROD_WWW_DIR
+# TARGET_PROD_ARTISAN_PATH
 
-cd /home/tallcat
-rm -rf builds/www_old
-mv builds/www_v1 builds/www_old
-mv $DEST builds/www_v1
-rm www_v1
-ln -s builds/www_v1 /home/tallcat/www_v1
-sudo mkdir /var/log/tallcat
-sudo chown -R www-data:www-data /var/log/tallcat
-sudo chmod -R a+rwx /var/log/tallcat
+# Delete last backup
+rm -rf $TARGET_PROD_WWW_BACKUP_DIR
+# Move current www directory to last backup directory
+mv $TARGET_PROD_WWW_DIR $TARGET_PROD_WWW_BACKUP_DIR
+# Move this build directory to www directory
+mv $TARGET_PROD_BUILD_DIR $TARGET_PROD_WWW_DIR
+# Remove this build directory
+rm $TARGET_PROD_BUILD_DIR
 
-php www_v1/cli/minify-tpl.php
+# Log Related
+# sudo mkdir /var/log/app
+# sudo chown -R www-data:www-data /var/log/app
+# sudo chmod -R a+rwx /var/log/app
 
-mkdir www_v1/app/logs
-sudo touch www_v1/app/logs/portal.log
-sudo chown -R www-data:www-data builds/www_v1
-sudo chmod -R a+w builds/www_v1/app/logs
-sudo chown -R www-data:www-data www_v1
-sudo chmod -R a+w www_v1/app/logs
-
-CACHE_PATH='www_v1/app/cache'
-mkdir $CACHE_PATH
-sudo chown -R www-data:www-data $CACHE_PATH
-sudo chmod 777 $CACHE_PATH
-
-LOG_PATH='www_v1/app/storage/logs/'
-mkdir $LOG_PATH
-sudo chown -R www-data:www-data $LOG_PATH
-sudo chmod 777 $LOG_PATH
-# Need to restart to avoid error in php path cache
-
-
-mkdir www_v1/app/storage
-mkdir www_v1/app/storage/framework
-mkdir www_v1/app/storage/logs
-mkdir www_v1/app/storage/api
-mkdir www_v1/app/storage/api/framework
-mkdir www_v1/app/storage/api/logs
-
-sudo chown www-data:www-data -hR www_v1/app/storage
-sudo chmod a+w -R www_v1/app/storage
-service apache2 restart
-cd www_v1
+# Go to www directory
+cd $TARGET_PROD_WWW_DIR
+php artisan down
+sudo chown -R www-data:www-data $TARGET_PROD_WWW_DIR
+sudo chgrp -R www-data $TARGET_PROD_WWW_DIR/storage $TARGET_PROD_WWW_DIR/bootstrap/cache
+sudo chmod -R ug+rwx $TARGET_PROD_WWW_DIR/storage $TARGET_PROD_WWW_DIR/bootstrap/cache
 composer self-update
 composer update
 composer dump-autoload
 php artisan cache:clear
-php artisan vendor:publish --force
-# php artisan migrate --force
+php artisan vendor:publish
 php artisan migrate
+npm update
+# npm run prod
+gulp --production
+# @TODO: STATIC FILES TO S3 PROCESSING 
 # php artisan neo4j:migrate --database=neo4j
+sudo service nginx restart
+sudo service php7.0-fpm restart
 php artisan up
