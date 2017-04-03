@@ -7,19 +7,21 @@
 # TARGET_PROD_WWW_DIR
 # TARGET_PROD_ARTISAN_PATH
 
-# Keep .env
-cp $TARGET_PROD_WWW_DIR/.env ~/
-# Delete last backup
-echo "Removing: $TARGET_PROD_WWW_BACKUP_DIR"
-sudo rm -rf $TARGET_PROD_WWW_BACKUP_DIR
-# Move current www directory to last backup directory
-echo "Moving: $TARGET_PROD_WWW_DIR to $TARGET_PROD_WWW_BACKUP_DIR"
-sudo mv $TARGET_PROD_WWW_DIR $TARGET_PROD_WWW_BACKUP_DIR
-# Move this build directory to www directory
-echo "Moving: $TARGET_PROD_BUILD_DIR to $TARGET_PROD_WWW_DIR"
-sudo mv $TARGET_PROD_BUILD_DIR $TARGET_PROD_WWW_DIR
-# Move back .env
-mv ~/.env $TARGET_PROD_WWW_DIR
+# # Keep .env
+# cp $TARGET_PROD_WWW_DIR/.env ~/
+# # Delete last backup
+# echo "Removing: $TARGET_PROD_WWW_BACKUP_DIR"
+# sudo rm -rf $TARGET_PROD_WWW_BACKUP_DIR
+# # Move current www directory to last backup directory
+# echo "Moving: $TARGET_PROD_WWW_DIR to $TARGET_PROD_WWW_BACKUP_DIR"
+# sudo mv $TARGET_PROD_WWW_DIR $TARGET_PROD_WWW_BACKUP_DIR
+# # Move this build directory to www directory
+# echo "Moving: $TARGET_PROD_BUILD_DIR to $TARGET_PROD_WWW_DIR"
+# sudo mv $TARGET_PROD_BUILD_DIR $TARGET_PROD_WWW_DIR
+# # Move back .env
+# mv ~/.env $TARGET_PROD_WWW_DIR
+
+sudo rsync -avP $TARGET_PROD_BUILD_DIR $TARGET_PROD_WWW_DIR
 
 # Log Related
 # sudo mkdir /var/log/app
@@ -29,6 +31,10 @@ mv ~/.env $TARGET_PROD_WWW_DIR
 # Go to www directory
 echo "Go to: $TARGET_PROD_WWW_DIR"
 cd $TARGET_PROD_WWW_DIR
+
+echo "CHOWN"
+sudo chown -R ubuntu:www-data $TARGET_PROD_WWW_DIR
+
 mkdir vendor
 mkdir bootstrap/cache
 mkdir storage/logs
@@ -38,6 +44,7 @@ echo "Composer processing"
 composer self-update
 composer update
 composer dump-autoload
+
 echo "Artisan cleaning cache"
 php $TARGET_PROD_ARTISAN_PATH cache:clear
 echo "Artisan publishing vendor"
@@ -52,8 +59,6 @@ echo "Static files processing"
 # @TODO: STATIC FILES TO S3 PROCESSING 
 # php $TARGET_PROD_ARTISAN_PATH neo4j:migrate --database=neo4j
 
-echo "CHOWN"
-sudo chown -R www-data:www-data $TARGET_PROD_WWW_DIR
 echo "CHGRP"
 sudo chgrp -R www-data $TARGET_PROD_WWW_DIR/storage $TARGET_PROD_WWW_DIR/bootstrap/cache
 echo "CHMOD"
